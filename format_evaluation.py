@@ -441,6 +441,7 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
 
         best_node = final_nodes[-1]
 
+        '''
         print('***************** BEGINNING PHASE 2, budget:', budget_per_call)
         final_node_previous_to_phase_two = self._choose_final_node(
             num_successes_list[-1], total_elements_evaluated_list[-1], 'lowest', nodes_sampled)
@@ -455,14 +456,19 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
             total_elements_evaluated=copy.copy(total_elements_evaluated_list[-1]))
 
         worst_node = final_nodes[-1] if final_nodes else final_node_previous_to_phase_two
-
+        
         self.metadata['thompson_sampling']['lowest-num_successes_list'] = num_successes_list
         self.metadata['thompson_sampling']['lowest-total_elements_evaluated_list'] = total_elements_evaluated_list
         self.metadata['thompson_sampling']['lowest-final_nodes'] = final_nodes if final_nodes else worst_node
-
+        '''
         # these evals don't count towards the exploration budget, it's just to report final spreads found accurately
         self._evaluate_node_on_batch(best_node, num_samples=-1)
+        
+        '''
         self._evaluate_node_on_batch(worst_node, num_samples=-1)
+        '''
 
         print('Best Node:', repr(best_node), self.all_structured_prompt_formats_accuracies[best_node])
+        '''
         print('Worst Node:', repr(worst_node), self.all_structured_prompt_formats_accuracies[worst_node])
+        '''
