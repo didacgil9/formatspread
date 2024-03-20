@@ -73,6 +73,29 @@ def _load_model(args):
             # Set `pad_token_id` in model's configuration
             model.config.pad_token_id = tokenizer.pad_token_id
 
+        elif any(t in args.model_name.lower() for t in ['gpt2']) \
+                and args.batch_size_llm is not None:
+            from transformers import AutoTokenizer, AutoModelForCausalLM
+
+            # torch_dtype=torch.float16 is incompatible with batching
+            tokenizer = AutoTokenizer.from_pretrained(
+                args.model_name, use_fast=True, cache_dir=cache_dir, return_token_type_ids=False)
+            model = AutoModelForCausalLM.from_pretrained(args.model_name, cache_dir=cache_dir, trust_remote_code=True)
+            model = model.to('cuda')
+            model_will_repeat_input = True
+
+            # Add special padding token
+            special_tokens_dict = {'pad_token': '[PAD]'}
+            num_added_toks = tokenizer.add_special_tokens(special_tokens_dict)
+            tokenizer.padding_side = "left"
+            print('We have added', num_added_toks, 'tokens')
+
+            # Resize the token embeddings
+            model.resize_token_embeddings(len(tokenizer))
+
+            # Set `pad_token_id` in model's configuration
+            model.config.pad_token_id = tokenizer.pad_token_id
+
         elif not args.use_gpt3:
             from transformers import AutoTokenizer, AutoModelForCausalLM
             tokenizer = AutoTokenizer.from_pretrained(
