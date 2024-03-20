@@ -39,17 +39,22 @@
           "--dataset_name", "natural-instructions",
           "--num_formats_to_analyze",  "50",
           "--batch_size_llm", "5",
-          "--num_samples",  "30",
+          "--num_samples",  "100",
           //"--model_name", "meta-llama/Llama-2-7b-chat-hf",
-          "--model_name", "meta-llama/Llama-2-7b-hf",
+          "--model_name", "openai-community/gpt2",
+          //"--model_name", "meta-llama/Llama-2-7b-hf",
           //"--model_name", "mistralai/Mistral-7B-v0.1",
+          //"--model_name","mistralai/Mixtral-8x7B-Instruct-v0.1",
+          //"--model_name","google/gemma-7b",
+          //"--model_name","tiiuae/falcon-7b",
+          //"--model_name","google-bert/bert-base-uncased",
           // "--use_4bit", 
-          "--n_shot", "2",
+          "--n_shot", "3",
           "--evaluation_metric", "probability_ranking",
           "--evaluation_type", "format_spread",
           "--num_formats_format_spread", "320",
           "--batch_size_format_spread", "5",
-          "--budget_format_spread", "600"
+          "--budget_format_spread", "2000"
         ]
       },
       {
@@ -109,6 +114,35 @@
           "--check_cost", "true",
           "--unit_cost_input", "0.000000125",  // prive per token input  in $
           "--unit_cost_output", "0.000000375", // price per token output in $
+          "--chargeable_unit", "char"
+          // GTP4-Turbo, GPT-4, Gemini, GPT-3.5, Gemini 1.5
+        ]
+      },
+      {
+        "name": "Cost GPT2 main.py",
+        "type": "debugpy",
+        "request": "launch",
+        // "program": "${file}",
+        "program": "main.py",
+        "console": "integratedTerminal",
+        "args": [
+          "--task_filename", "task280_", //"task155_", //"task158_",
+          "--dataset_name", "natural-instructions",
+          "--num_formats_to_analyze",  "960",
+          "--batch_size_llm", "2",
+          "--num_samples",  "2000",
+          "--model_name", "openai-community/gpt2",
+          // "--use_4bit", 
+          "--n_shot", "5",
+          "--evaluation_metric", "probability_ranking", //"exact_prefix_matching",
+          "--evaluation_type", "format_spread",  //Thompson sampling evaluation
+          "--num_formats_format_spread", "320",
+          "--batch_size_format_spread", "4",
+          "--budget_format_spread", "40000",
+
+          "--check_cost", "true",
+          "--unit_cost_input", "0.00003",  // prive per token input  in $
+          "--unit_cost_output", "0.00006", // price per token output in $
           "--chargeable_unit", "char"
           // GTP4-Turbo, GPT-4, Gemini, GPT-3.5, Gemini 1.5
         ]
