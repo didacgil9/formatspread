@@ -508,38 +508,34 @@ if __name__ == "__main__":
             # Collect a sample of prompts and check their size in tokens
             print("Loading model and tokenizer to calculate tokens")
             model, tokenizer, model_will_repeat_input = _load_model(args)
+                                
+            '''Prompts to tokens'''
+            tokens_in_prompts = sum(len(tokenizer(args_compute_node_score['dataset'][i]['input'], return_tensors="pt")['input_ids'].tolist()[0]) for i in range(len(args_compute_node_score['dataset'])))
+
+            '''Demo Definition to tokens'''
+            tokens_in_demonstration_definition = len(tokenizer(demonstration_definition['sentence'], return_tensors="pt", padding=True, return_token_type_ids=False)['input_ids'].tolist()[0])
             
-            dataset = args_compute_node_score['dataset']
-            all_prompts = [entry['input'] for entry in dataset]
-            prompts = random.sample(all_prompts, int(0.1* len(all_prompts)))
-
-            output_classes = sorted(list(set([dataset[idx]['output'][0] for idx in selected_dataset_ids])))
-    
-            output_classes_tokens = [t for t in tokenizer(output_classes, return_token_type_ids=False)['input_ids']]
-            all_classes_share_common_prefix = len(set([tuple(t[:-1]) for t in output_classes_tokens])) == 1
-
-            tokenized_inputs_list = tokenizer(prompts, return_tensors="pt", padding=True, return_token_type_ids=False)[
-                'input_ids'].tolist()
-            if all_classes_share_common_prefix:
-                for i in range(len(tokenized_inputs_list)):
-                    # if the tokenized element is [1, 29871, 29900], get [29871]
-                    tokenized_inputs_list[i] += output_classes_tokens[0][1:-1]
-            tokenized_inputs = torch.tensor(tokenized_inputs_list).to('cuda')
-            units_prompt_input = 0 
-            units_prompt_output = num_prompts * args.max_new_tokens       
+            '''Demo sentences to tokens'''
+            #tokens_in_demo = 0
+            #for i in range(len(demos_fields_list['sentences'])):
+            #    tokens_in_demo +=  len(tokenizer(demos_fields_list['sentences'][i], return_tensors="pt", padding=False, return_token_type_ids=False)['input_ids'].tolist()[0])
+            tokens_in_demo = sum(len(tokenizer(demos_fields_list['sentences'][i], return_tensors="pt")['input_ids'].tolist()[0]) for i in range(len(demos_fields_list['sentences'])))
+            
+            units_prompt_input = tokens_in_prompts + \
+                num_prompts * ( tokens_in_demonstration_definition + tokens_in_demo)
+            
+            units_prompt_output = num_prompts * 1       
 
         elif args.chargeable_unit == 'word':
             # Collect a sample of prompts and check their size in words
             units_prompt_input = sum(input_fields_list['words']) + \
-                num_prompts*demonstration_definition['words'] + \
-                num_prompts * sum(demos_fields_list['words'])
+                num_prompts * ( demonstration_definition['words'] +  sum(demos_fields_list['words']))
             units_prompt_output = num_prompts * (sum(demonstration_outputs['words']) / len(demonstration_outputs['words']) )
 
         elif args.chargeable_unit == 'char':
             # Collect a sample of prompts and check their size in characters
             units_prompt_input =  sum(input_fields_list['chars']) + \
-                num_prompts * demonstration_definition['chars'] + \
-                num_prompts * sum(demos_fields_list['chars'])
+                num_prompts * ( demonstration_definition['chars'] + sum(demos_fields_list['chars']))
             units_prompt_output = num_prompts * (sum (demonstration_outputs['chars']) / len(demonstration_outputs['chars']) )
 
         else:
@@ -552,11 +548,15 @@ if __name__ == "__main__":
             )
         print('Cost calculated as the worst case scenario, where all format combinations need to ')
         print('be fully evaluated with all selected prompts "--num_samples". ')
-        print('')
+        print()
         print('Output considered to be only 1 token/character/word as in the tests,')
         print('the responses are either meant to be a number or a letter')
-        print('cost is ', total_cost)
-        print('Number of prompts sent: ')
+        print()
+        print('Cost is ', round(total_cost,2))
+        print('Number of prompts sent: ', num_prompts)
+        print('Number of Input  units: ', args.num_formats_to_analyze * units_prompt_input)
+        print('Number of Output units: ',  args.num_formats_to_analyze * units_prompt_output)
+
         os._exit(0)
 
     else:
