@@ -358,6 +358,8 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
         # using EV=initial_node, we know that: a * (1 - initial_node) = initial_node * b. We initialize with b=5
         # we also avoid non-bell shape curves
         b = 5
+        if upper_bound_worst_node_accuracy == 1.0: #Protect the case that the original format responds correctly to all questions
+            upper_bound_worst_node_accuracy = 0.999
         a = upper_bound_worst_node_accuracy / (1 - upper_bound_worst_node_accuracy) * b
         a = max(a, 1.1)
         initial_a_b_params = (a, b)
