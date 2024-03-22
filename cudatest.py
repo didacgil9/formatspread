@@ -11,5 +11,8 @@ if torch.cuda.is_available():
         device = torch.cuda.get_device_properties(i)
         compute_capability = torch.cuda.get_device_capability(i)
         print(f"Device {i}: {device.name}, Compute Capability: {compute_capability}")
+        print("Device name:", torch.cuda.get_device_properties('cuda').name)
+        print("FlashAttention available:", torch.backends.cuda.flash_sdp_enabled())
+        print(f'torch version: {torch.version}')
 else:
     print("CUDA is not available. Make sure your GPU drivers and CUDA Toolkit are properly installed.")
