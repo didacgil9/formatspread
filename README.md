@@ -7,7 +7,7 @@ Prerequisides Didac :
 C:\Users\Didac\anaconda3\envs\formatspread2\python.exe -m pip install -r .\pip_list.txt
 
 Make sure you get CUDA enabled
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 Prerequisites: download [natural-instructions](https://github.com/allenai/natural-instructions) and [instruction-induction](https://github.com/orhonovich/instruction-induction).
 
