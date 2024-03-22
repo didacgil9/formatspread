@@ -319,6 +319,85 @@ def _get_output_filename(args):
 
     return filename
 
+def _calculate_max_cost(args, args_compute_node_score):
+    whole_dataset = args_compute_node_score['dataset']
+    input_fields_list = {
+        'sentences': args_compute_node_score['input_fields_list'],
+        'words'    : [len(sentence[0].split()) for sentence in args_compute_node_score['input_fields_list']],
+        'chars'    : [len(sentence[0]) for sentence in args_compute_node_score['input_fields_list']]  
+    }
+    demos_fields_list = {
+        'sentences': args_compute_node_score['demos_fields_list'],
+        'words'    : [len(sentence[0].split()) for sentence in args_compute_node_score['demos_fields_list']],
+        'chars'    : [len(sentence[0]) for sentence in args_compute_node_score['demos_fields_list']]  
+    }
+    demonstration_definition = {
+        'sentence': args_compute_node_score['demonstration_definition'],
+        'words'    : len(args_compute_node_score['demonstration_definition'].split()),
+        'chars'    : len(args_compute_node_score['demonstration_definition']) 
+    }
+    demonstration_outputs = {
+        'sentences': args_compute_node_score['demonstrations_outputs'],
+        'words'    : [len(sentence[0].split()) for sentence in args_compute_node_score['demonstrations_outputs']],
+        'chars'    : [len(sentence[0]) for sentence in args_compute_node_score['demonstrations_outputs']]  
+    }
+
+    # In worst case scenario, we will send all the prompts to all the formats
+    # num_prompts = len (args.dataset_ordered_ids)    # complete set of prompts that could be sent
+    max_new_tokens = args.max_new_tokens            # added tokens in responses
+    #n_shot = args.n_shot                            # number of examples provided for each prompt
+
+    # args.task_filename
+    num_prompts = len(input_fields_list['sentences'])
+
+    units_prompt_output = 0  
+    if args.chargeable_unit == 'token':
+        import torch
+        print("Loading model and tokenizer to calculate tokens")
+        model, tokenizer, model_will_repeat_input = _load_model(args)
+
+
+        '''Prompts to tokens'''
+        # We could collect a random sample of X% of the prompts, but the time for tokenizer execution is not that big
+        # percentage = 0.1
+        # prompts_sample = random.sample([args_compute_node_score['dataset'][i]['input'] for i in range(len(args_compute_node_score['dataset']))], 
+        #        percentage * len(args_compute_node_score['dataset']))
+        tokens_in_prompts = sum(len(tokenizer(args_compute_node_score['dataset'][i]['input'], return_tensors="pt")['input_ids'].tolist()[0]) for i in range(len(args_compute_node_score['dataset'])))
+
+        '''Demo Definition to tokens'''
+        tokens_in_demonstration_definition = len(tokenizer(demonstration_definition['sentence'], return_tensors="pt", padding=True, return_token_type_ids=False)['input_ids'].tolist()[0])
+        
+        '''Demo sentences to tokens'''
+        tokens_in_demo = sum(len(tokenizer(demos_fields_list['sentences'][i], return_tensors="pt")['input_ids'].tolist()[0]) for i in range(len(demos_fields_list['sentences'])))
+        
+        units_prompt_input = tokens_in_prompts + \
+            num_prompts * ( tokens_in_demonstration_definition + tokens_in_demo)
+        
+        units_prompt_output = num_prompts * 1       
+
+    elif args.chargeable_unit == 'word':
+        # Collect a sample of prompts and check their size in words
+        units_prompt_input = sum(input_fields_list['words']) + \
+            num_prompts * ( demonstration_definition['words'] +  sum(demos_fields_list['words']))
+        units_prompt_output = num_prompts * (sum(demonstration_outputs['words']) / len(demonstration_outputs['words']) )
+
+    elif args.chargeable_unit == 'char':
+        # Collect a sample of prompts and check their size in characters
+        units_prompt_input =  sum(input_fields_list['chars']) + \
+            num_prompts * ( demonstration_definition['chars'] + sum(demos_fields_list['chars']))
+        units_prompt_output = num_prompts * (sum (demonstration_outputs['chars']) / len(demonstration_outputs['chars']) )
+
+    else:
+        print("Invalid chargeable_unit value")
+        os._exit(0)
+
+    total_cost = args.num_formats_to_analyze *  \
+        ( (units_prompt_input * args.unit_cost_input) + \
+            (units_prompt_output * args.unit_cost_output) \
+        )
+
+
+    return total_cost, num_prompts, units_prompt_input, units_prompt_output
 
 if __name__ == "__main__":
     # python main.py --task_filename singular_to_plural.json --num_formats_to_analyze 5 --batch_size_llm 10 --model_name "meta-llama/Llama-2-7b-hf" --n_shot 5
@@ -472,80 +551,8 @@ if __name__ == "__main__":
     print('Task loaded.')
 
     if args.check_cost:
-        whole_dataset = args_compute_node_score['dataset']
-        input_fields_list = {
-            'sentences': args_compute_node_score['input_fields_list'],
-            'words'    : [len(sentence[0].split()) for sentence in args_compute_node_score['input_fields_list']],
-            'chars'    : [len(sentence[0]) for sentence in args_compute_node_score['input_fields_list']]  
-        }
-        demos_fields_list = {
-            'sentences': args_compute_node_score['demos_fields_list'],
-            'words'    : [len(sentence[0].split()) for sentence in args_compute_node_score['demos_fields_list']],
-            'chars'    : [len(sentence[0]) for sentence in args_compute_node_score['demos_fields_list']]  
-        }
-        demonstration_definition = {
-            'sentence': args_compute_node_score['demonstration_definition'],
-            'words'    : len(args_compute_node_score['demonstration_definition'].split()),
-            'chars'    : len(args_compute_node_score['demonstration_definition']) 
-        }
-        demonstration_outputs = {
-            'sentences': args_compute_node_score['demonstrations_outputs'],
-            'words'    : [len(sentence[0].split()) for sentence in args_compute_node_score['demonstrations_outputs']],
-            'chars'    : [len(sentence[0]) for sentence in args_compute_node_score['demonstrations_outputs']]  
-        }
+        total_cost, num_prompts, units_prompt_input, units_prompt_output =  _calculate_max_cost(args, args_compute_node_score)
 
-        # In worst case scenario, we will send all the prompts to all the formats
-        # num_prompts = len (args.dataset_ordered_ids)    # complete set of prompts that could be sent
-        max_new_tokens = args.max_new_tokens            # added tokens in responses
-        #n_shot = args.n_shot                            # number of examples provided for each prompt
-
-        # args.task_filename
-        num_prompts = len(input_fields_list['sentences'])
-
-        units_prompt_output = 0  
-        if args.chargeable_unit == 'token':
-            import torch
-            # Collect a sample of prompts and check their size in tokens
-            print("Loading model and tokenizer to calculate tokens")
-            model, tokenizer, model_will_repeat_input = _load_model(args)
-                                
-            '''Prompts to tokens'''
-            tokens_in_prompts = sum(len(tokenizer(args_compute_node_score['dataset'][i]['input'], return_tensors="pt")['input_ids'].tolist()[0]) for i in range(len(args_compute_node_score['dataset'])))
-
-            '''Demo Definition to tokens'''
-            tokens_in_demonstration_definition = len(tokenizer(demonstration_definition['sentence'], return_tensors="pt", padding=True, return_token_type_ids=False)['input_ids'].tolist()[0])
-            
-            '''Demo sentences to tokens'''
-            #tokens_in_demo = 0
-            #for i in range(len(demos_fields_list['sentences'])):
-            #    tokens_in_demo +=  len(tokenizer(demos_fields_list['sentences'][i], return_tensors="pt", padding=False, return_token_type_ids=False)['input_ids'].tolist()[0])
-            tokens_in_demo = sum(len(tokenizer(demos_fields_list['sentences'][i], return_tensors="pt")['input_ids'].tolist()[0]) for i in range(len(demos_fields_list['sentences'])))
-            
-            units_prompt_input = tokens_in_prompts + \
-                num_prompts * ( tokens_in_demonstration_definition + tokens_in_demo)
-            
-            units_prompt_output = num_prompts * 1       
-
-        elif args.chargeable_unit == 'word':
-            # Collect a sample of prompts and check their size in words
-            units_prompt_input = sum(input_fields_list['words']) + \
-                num_prompts * ( demonstration_definition['words'] +  sum(demos_fields_list['words']))
-            units_prompt_output = num_prompts * (sum(demonstration_outputs['words']) / len(demonstration_outputs['words']) )
-
-        elif args.chargeable_unit == 'char':
-            # Collect a sample of prompts and check their size in characters
-            units_prompt_input =  sum(input_fields_list['chars']) + \
-                num_prompts * ( demonstration_definition['chars'] + sum(demos_fields_list['chars']))
-            units_prompt_output = num_prompts * (sum (demonstration_outputs['chars']) / len(demonstration_outputs['chars']) )
-
-        else:
-            print("Invalid chargeable_unit value")
-            os._exit(0)
-
-        total_cost = args.num_formats_to_analyze *  \
-            ( (units_prompt_input * args.unit_cost_input) + \
-              (units_prompt_output * args.unit_cost_output) \
-            )
         print('Cost calculated as the worst case scenario, where all format combinations need to ')
         print('be fully evaluated with all selected prompts "--num_samples". ')
         print()
@@ -556,7 +563,6 @@ if __name__ == "__main__":
         print('Number of prompts sent: ', num_prompts)
         print('Number of Input  units: ', args.num_formats_to_analyze * units_prompt_input)
         print('Number of Output units: ',  args.num_formats_to_analyze * units_prompt_output)
-
         os._exit(0)
 
     else:
