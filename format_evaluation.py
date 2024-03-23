@@ -335,6 +335,48 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
         accuracy_nodes = sorted(accuracy_nodes, reverse=(objective == 'highest'))
         return accuracy_nodes[0][-1]
 
+
+    def _evaluate_stopping(self, params, nodes_sampled, initial_a_b_params, total_elements_evaluated, num_successes):
+        means = []
+        stds = []
+        maxs = []
+        mins = []
+        total_evaluations = [] 
+        for node in nodes_sampled:
+            total_evaluations.append( total_elements_evaluated[node])
+            a = initial_a_b_params[0] + num_successes[node]
+            b = initial_a_b_params[1] + total_elements_evaluated[node] - num_successes[node]
+            variance = (a * b) / ((a + b) ** 2 * (a + b + 1))
+            mean = a / (a + b)
+            std = np.sqrt(variance)
+            means.append(mean)    
+            stds.append( std )
+            maxs.append(min(mean + params['std_multiplier'] * std, 1))
+            mins.append(max(mean - params['std_multiplier'] * std, 0))
+
+        
+        winning_node = np.argmax(means) # This is the current winner
+        winner_worse = mins[winning_node]
+
+        # Checking if we got the final winner
+        if means[winning_node] > params['stop_avg'] and stds[winning_node] < params['stop_std']:
+            print("The Winner is really good:", winning_node)
+            return True, winning_node, "Better than stop_avg"
+
+        # Checking if all the different formats have no chances to perform
+        continue_evaluation = any(maxs[i] >= params['minimum_performance'] or total_evaluations[i] < 10 for i in range(1, len(nodes_sampled)))
+        if not continue_evaluation:
+            print("All the formats are bad")
+            return True, 0, "All the formats are bad"
+
+        # Checking if the current winner cannot be beaten
+        for i in range (0, len(nodes_sampled) ):
+            if i != winning_node:
+                if maxs[i] > mins[winning_node]:
+                    return False, 0, "The competition is not over yet"
+        print("This is the best format: ", winning_node)
+        return True, winning_node, "Better than the rest"        
+
     def _evaluate_nodes_thompson_sampling(
             self,
             original_node,
@@ -360,6 +402,7 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
         b = 5
         if upper_bound_worst_node_accuracy == 1.0: #Protect the case that the original format responds correctly to all questions
             upper_bound_worst_node_accuracy = 0.999
+            print('Original formal was perfect')
         a = upper_bound_worst_node_accuracy / (1 - upper_bound_worst_node_accuracy) * b
         a = max(a, 1.1)
         initial_a_b_params = (a, b)
@@ -372,7 +415,9 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
             samples_list = []
             for node in nodes_sampled:
                 if total_elements_evaluated[node] == num_samples_in_dataset:
-                    print('node', repr(node), 'has been fully evaluated.', num_samples_in_dataset)
+                    print('node', repr(node), 'has been fully evaluated. Samples:', num_samples_in_dataset, 
+                          '\t correct: ', num_successes[node], '\t wrong: ', total_elements_evaluated[node] - num_successes[node])
+                   
                     samples_list.append(1e9 if objective == 'lowest' else -1e9)
                 elif use_ucb_rule:
                     success_ratio = num_successes[node] / total_elements_evaluated[node] if total_elements_evaluated[node] else 0
@@ -385,13 +430,25 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
                 else:
                     a = initial_a_b_params[0] + num_successes[node]
                     b = initial_a_b_params[1] + total_elements_evaluated[node] - num_successes[node]
-                    samples_list.append(np.random.beta(a, b))
+                    samples_list.append(np.random.beta(a, b))                                   
+
             if objective == 'lowest' and min(samples_list) == 1e9:
                 print('Evaluated all available samples, ending. thompson_sampling')
                 break
             if objective == 'highest' and max(samples_list) == -1e9:
                 print('Evaluated all available samples, ending. thompson_sampling')
                 break
+
+            params = {
+                    "minimum_performance" : 0.6,
+                    "stop_avg" : 0.66,
+                    "std_multiplier" : 2,
+                    "stop_std" : 0.08
+            }
+            stop, node_id, reason = self._evaluate_stopping(params, nodes_sampled, initial_a_b_params, total_elements_evaluated, num_successes)
+            if stop:
+                import os
+                os._exit(0)
 
             chosen_node_id = np.argmin(samples_list) if objective == 'lowest' else np.argmax(samples_list)
             chosen_node = nodes_sampled[chosen_node_id]
