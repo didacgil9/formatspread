@@ -40,7 +40,7 @@
           "--dataset_name", "natural-instructions",
           "--num_formats_to_analyze",  "20",
           "--batch_size_llm", "5",
-          "--num_samples",  "50",
+          "--num_samples",  "500",
           //"--model_name", "meta-llama/Llama-2-7b-chat-hf",
           "--model_name", "openai-community/gpt2",
           //"--model_name", "meta-llama/Llama-2-7b-hf",
@@ -57,7 +57,7 @@
           "--batch_size_format_spread", "5",
           "--budget_format_spread", "4000",
 
-          "--set_restrictions", "False",
+          //"--set_restrictions", "False",
           "--minimum_performance", "0.6",
           "--stop_avg", "0.66",
           "--std_multiplier", "2",

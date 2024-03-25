@@ -528,15 +528,11 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
         # Picking the right best model
         last_successes = num_successes_list[-1]
         last_totals = total_elements_evaluated_list[-1]
-
-        format_names = [format for format in last_successes]
-        format_ratios = list({format: last_successes[format] / last_totals[format] if last_totals[format] != 0 else 0 for format in last_totals})
-
+        format_ratios = {format: last_successes[format] / last_totals[format] if last_totals[format] != 0 else 0.0 for format in last_totals}
         
-        best_node_id = np.argmax(format_ratios)
-        best_node_name = format_names[best_node_id]
+        best_node_name = max(format_ratios, key=format_ratios.get)
+        print(f"{repr(best_node_name)}: Total: {last_totals[best_node_name]}  Correct: {last_successes[best_node_name]}  Ratio: {format_ratios[best_node_name]}")
 
-        print(f"{repr(best_node_name)}: Total: {last_totals[best_node_name]}  Correct: {last_successes[best_node_name]}  Ratio: {format_ratios[best_node_id]}")
         '''
         self._evaluate_node_on_batch(worst_node, num_samples=-1)
         '''
