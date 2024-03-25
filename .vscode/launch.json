@@ -5,6 +5,7 @@
     "version": "0.2.0",
     "configurations": [
 
+
   
   
   
@@ -35,11 +36,11 @@
         "program": "main.py",
         "console": "integratedTerminal",
         "args": [
-          "--task_filename", "task158_",
+          "--task_filename", "task280_",
           "--dataset_name", "natural-instructions",
-          "--num_formats_to_analyze",  "50",
+          "--num_formats_to_analyze",  "20",
           "--batch_size_llm", "5",
-          "--num_samples",  "100",
+          "--num_samples",  "50",
           //"--model_name", "meta-llama/Llama-2-7b-chat-hf",
           "--model_name", "openai-community/gpt2",
           //"--model_name", "meta-llama/Llama-2-7b-hf",
@@ -49,12 +50,18 @@
           //"--model_name","tiiuae/falcon-7b",
           //"--model_name","google-bert/bert-base-uncased",
           // "--use_4bit", 
-          "--n_shot", "3",
+          "--n_shot", "2",
           "--evaluation_metric", "probability_ranking",
           "--evaluation_type", "format_spread",
           "--num_formats_format_spread", "320",
           "--batch_size_format_spread", "5",
-          "--budget_format_spread", "2000"
+          "--budget_format_spread", "4000",
+
+          "--set_restrictions", "False",
+          "--minimum_performance", "0.6",
+          "--stop_avg", "0.66",
+          "--std_multiplier", "2",
+          "--stop_std", "0.08"
         ]
       },
       {

@@ -450,6 +450,13 @@ if __name__ == "__main__":
     parser.add_argument('--unit_cost_output', type=float, default=0.0, help='')
     parser.add_argument('--chargeable_unit', type=str, default='token', help='How the cost is being computed. Options: "token","word","char"')
 
+    parser.add_argument('--set_restrictions', type=bool, default=False)
+    parser.add_argument('--minimum_performance', type=float, default=0.8, help='Minimum mean of correct answers to consider a format is acceptable')
+    parser.add_argument('--stop_avg', type=float, default=0.85, help='Mean of correct answers to consider a format has acchieved our expectations. E.g. 0.85 means that 85 out of 100 prompts were responded correctly')
+    parser.add_argument('--stop_std', type=float, default=0.06, help ='Minimum accuracy of the winner format using a Beta Distribution standard deviation. Combines with "stop_avg". E.g. stop_avg=0.85 and stop_std=0.06 means the evaluation can stop if a format has been found to respond correctly 85% of the prompts with a std dev lower than')
+    parser.add_argument('--std_multiplier', type=float, default=1.5, help='Distance between best format and approaching formats measured in terms of Beta Distribution standard deviations')
+    
+
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -583,6 +590,7 @@ if __name__ == "__main__":
     args_compute_node_score['model_will_repeat_input'] = model_will_repeat_input
     args_compute_node_score['args'].use_gpt3 = args.use_gpt3
     args_compute_node_score['args'].gpt3_engine = args.gpt3_engine
+    args_compute_node_score['args'].set_restrictions = args.set_restrictions
 
     # 3. evaluate formats
     print('Start evaluation of formats.')

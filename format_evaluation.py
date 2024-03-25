@@ -356,7 +356,6 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
 
         
         winning_node = np.argmax(means) # This is the current winner
-        winner_worse = mins[winning_node]
 
         # Checking if we got the final winner
         if means[winning_node] > params['stop_avg'] and stds[winning_node] < params['stop_std']:
@@ -367,7 +366,7 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
         continue_evaluation = any(maxs[i] >= params['minimum_performance'] or total_evaluations[i] < 10 for i in range(1, len(nodes_sampled)))
         if not continue_evaluation:
             print("All the formats are bad")
-            return True, 0, "All the formats are bad"
+            return True, winning_node, "All the formats are bad"
 
         # Checking if the current winner cannot be beaten
         for i in range (0, len(nodes_sampled) ):
@@ -439,16 +438,18 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
                 print('Evaluated all available samples, ending. thompson_sampling')
                 break
 
-            params = {
-                    "minimum_performance" : 0.6,
-                    "stop_avg" : 0.66,
-                    "std_multiplier" : 2,
-                    "stop_std" : 0.08
-            }
-            stop, node_id, reason = self._evaluate_stopping(params, nodes_sampled, initial_a_b_params, total_elements_evaluated, num_successes)
-            if stop:
-                import os
-                os._exit(0)
+            
+
+            if  objective == 'highest' and self.args_compute_node_score['args'].set_restrictions :
+                params = {
+                    "minimum_performance" : self.args_compute_node_score['args'].minimum_performance ,
+                    "stop_avg" : self.args_compute_node_score['args'].stop_avg, 
+                    "std_multiplier" : self.args_compute_node_score['args'].std_multiplier,
+                    "stop_std" : self.args_compute_node_score['args'].stop_std
+                }   
+                stop, node_id, reason = self._evaluate_stopping(params, nodes_sampled, initial_a_b_params, total_elements_evaluated, num_successes)
+                if stop:
+                    return final_nodes, num_successes_list, total_elements_evaluated_list
 
             chosen_node_id = np.argmin(samples_list) if objective == 'lowest' else np.argmax(samples_list)
             chosen_node = nodes_sampled[chosen_node_id]
@@ -522,7 +523,20 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
         '''
         # these evals don't count towards the exploration budget, it's just to report final spreads found accurately
         self._evaluate_node_on_batch(best_node, num_samples=-1)
+
+
+        # Picking the right best model
+        last_successes = num_successes_list[-1]
+        last_totals = total_elements_evaluated_list[-1]
+
+        format_names = [format for format in last_successes]
+        format_ratios = list({format: last_successes[format] / last_totals[format] if last_totals[format] != 0 else 0 for format in last_totals})
+
         
+        best_node_id = np.argmax(format_ratios)
+        best_node_name = format_names[best_node_id]
+
+        print(f"{repr(best_node_name)}: Total: {last_totals[best_node_name]}  Correct: {last_successes[best_node_name]}  Ratio: {format_ratios[best_node_id]}")
         '''
         self._evaluate_node_on_batch(worst_node, num_samples=-1)
         '''
