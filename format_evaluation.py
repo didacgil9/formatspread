@@ -535,9 +535,8 @@ class ThompsonSamplingAlgorithmAmongPrompts(GeneticAlgorithmAmongPrompts):
 
         '''
         self._evaluate_node_on_batch(worst_node, num_samples=-1)
-        '''
+        
 
         print('Best Node:', repr(best_node), self.all_structured_prompt_formats_accuracies[best_node])
-        '''
         print('Worst Node:', repr(worst_node), self.all_structured_prompt_formats_accuracies[worst_node])
         '''
